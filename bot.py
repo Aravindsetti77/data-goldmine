@@ -4,7 +4,7 @@ import pandas as pd
 from datetime import datetime
 
 def scrape_leads():
-    # Switching to a more stable target
+    # Switching to a more stable, scraper-friendly target
     url = "https://weworkremotely.com/categories/remote-programming-jobs"
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
@@ -21,26 +21,28 @@ def scrape_leads():
         soup = BeautifulSoup(response.text, 'html.parser')
         leads = []
 
-        # We Work Remotely uses <li> tags with class 'feature' or 'regular' for jobs
+        # This site uses standard list items for jobs
         jobs = soup.find_all('li', class_=['feature', 'regular'])
 
         for job in jobs:
             try:
-                # Find the title and company within the anchor tags
                 title_elem = job.find('span', class_='title')
                 company_elem = job.find('span', class_='company')
-                # Find the link
                 link_tag = job.find('a', href=True)
 
                 if title_elem and company_elem and link_tag:
-                    full_link = "https://weworkremotely.com" + link_tag['href']
+                    # Clean the strings and build the full URL
+                    full_link = link_tag['href']
+                    if not full_link.startswith('http'):
+                        full_link = "https://weworkremotely.com" + full_link
+                    
                     leads.append({
                         "Title": title_elem.get_text(strip=True),
                         "Company": company_elem.get_text(strip=True),
                         "Link": full_link,
                         "Date": datetime.now().strftime("%Y-%m-%d")
                     })
-            except Exception as e:
+            except Exception:
                 continue
 
         if leads:
