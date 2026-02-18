@@ -1,0 +1,36 @@
+name: Run Scraper Daily
+
+on:
+  schedule:
+    - cron: '0 0 * * *' # This is Midnight UTC. Adjust if you want it during college hours.
+  workflow_dispatch: # This adds a "Run now" button for testing.
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    # This gives the bot permission to write the CSV back to your repo
+    permissions:
+      contents: write 
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+
+      - name: Install Dependencies
+        run: pip install -r requirements.txt
+
+      - name: Execute Scraper
+        run: python bot.py
+
+      - name: Save and Commit Data
+        run: |
+          git config --global user.name "GitHub-Actions-Bot"
+          git config --global user.email "actions@github.com"
+          git add daily_leads.csv
+          git commit -m "Automated Data Update: $(date)" || echo "No changes to commit"
+          git push
