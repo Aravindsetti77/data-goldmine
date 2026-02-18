@@ -4,53 +4,34 @@ import pandas as pd
 from datetime import datetime
 
 def scrape_leads():
-    # Switching to a more stable, scraper-friendly target
-    url = "https://weworkremotely.com/categories/remote-programming-jobs"
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-    }
-
+    # RSS feeds are much harder to block than HTML pages
+    url = "https://weworkremotely.com/categories/remote-programming-jobs.rss"
+    
     try:
-        response = requests.get(url, headers=headers, timeout=15)
-        print(f"Status Code: {response.status_code}")
+        response = requests.get(url, timeout=15)
+        # We use 'xml' parser for RSS feeds
+        soup = BeautifulSoup(response.content, 'xml')
+        items = soup.find_all('item')
         
-        if response.status_code != 200:
-            print("Access denied by the website.")
-            return
-
-        soup = BeautifulSoup(response.text, 'html.parser')
         leads = []
-
-        # This site uses standard list items for jobs
-        jobs = soup.find_all('li', class_=['feature', 'regular'])
-
-        for job in jobs:
-            try:
-                title_elem = job.find('span', class_='title')
-                company_elem = job.find('span', class_='company')
-                link_tag = job.find('a', href=True)
-
-                if title_elem and company_elem and link_tag:
-                    # Clean the strings and build the full URL
-                    full_link = link_tag['href']
-                    if not full_link.startswith('http'):
-                        full_link = "https://weworkremotely.com" + full_link
-                    
-                    leads.append({
-                        "Title": title_elem.get_text(strip=True),
-                        "Company": company_elem.get_text(strip=True),
-                        "Link": full_link,
-                        "Date": datetime.now().strftime("%Y-%m-%d")
-                    })
-            except Exception:
-                continue
+        for item in items:
+            title = item.find('title').get_text() if item.find('title') else "N/A"
+            link = item.find('link').get_text() if item.find('link') else "N/A"
+            pub_date = item.find('pubDate').get_text() if item.find('pubDate') else "N/A"
+            
+            leads.append({
+                "Title": title,
+                "Link": link,
+                "Date_Posted": pub_date,
+                "Scraped_At": datetime.now().strftime("%Y-%m-%d")
+            })
 
         if leads:
             df = pd.DataFrame(leads)
             df.to_csv("daily_leads.csv", index=False)
-            print(f"Success! Found {len(leads)} leads.")
+            print(f"Success! Found {len(leads)} leads via RSS.")
         else:
-            print("No leads found. Site structure might have changed.")
+            print("RSS feed was empty.")
 
     except Exception as e:
         print(f"Error: {e}")
